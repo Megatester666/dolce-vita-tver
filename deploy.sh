@@ -96,9 +96,9 @@ get_user_input() {
     print_success "Email принят: $EMAIL"
 
     # Название приложения
-    echo -e "\n${BOLD}${YELLOW}Введите название магазина (по умолчанию: FastAPI Shop):${NC}"
+    echo -e "\n${BOLD}${YELLOW}Введите название магазина (по умолчанию: Dolce Vita Tver):${NC}"
     read -p "> " APP_NAME
-    APP_NAME=${APP_NAME:-"FastAPI Shop"}
+    APP_NAME=${APP_NAME:-"Dolce Vita Tver"}
     print_success "Название: $APP_NAME"
 
     # Подтверждение
@@ -399,7 +399,7 @@ http {
 
         # Static files from backend
         location /static/ {
-            alias /app/backend/static/;
+            alias /app/static/;
             expires 30d;
             add_header Cache-Control "public, immutable";
         }
@@ -429,15 +429,15 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: fashop_backend
-    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
-      - ./backend:/app/backend
-      - ./backend/shop.db:/app/backend/shop.db
-      - backend_static:/app/backend/static
+      - ./backend:/app
+      - ./backend/shop.db:/app/shop.db
+      - backend_static:/app/static
     environment:
       - APP_NAME=$APP_NAME
       - DEBUG=False
-      - DATABASE_URL=sqlite:///./backend/shop.db
+      - DATABASE_URL=sqlite:///./shop.db
       - CORS_ORIGINS=https://$DOMAIN,https://www.$DOMAIN
     expose:
       - "8000"
@@ -466,7 +466,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      - backend_static:/app/backend/static:ro
+      - backend_static:/app/static:ro
       - ./certbot/www:/var/www/certbot:ro
     ports:
       - "80:80"
@@ -595,7 +595,7 @@ build_and_run_docker() {
     fi
 
     print_info "Сборка Docker образов (это может занять несколько минут)..."
-    docker compose build --no-cache > /dev/null 2>&1
+    docker compose build --no-cache
     print_success "Docker образы собраны"
 
     print_info "Запуск контейнеров..."
