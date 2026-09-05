@@ -2,14 +2,18 @@ stages:
   - lint
   - test
   - frontend-test
+  - build
+  - deploy
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCKER_TLS_CERTDIR: ""
 
 cache:
   paths:
     - .cache/pip
     - backend/.venv
+    - frontend/node_modules/
 
 .lint-backend-template: &lint-backend
   image: python:3.11
@@ -53,3 +57,60 @@ frontend-test:
     - npm test --silent || true
   only:
     - branches
+
+# Build and push Docker images to GitLab Container Registry
+.build-image-template: &build-image
+  image: docker:24.0.2
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+
+build-backend:
+  <<: *build-image
+  stage: build
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA -f backend/Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+    - docker tag $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE/backend:latest
+    - docker push $CI_REGISTRY_IMAGE/backend:latest
+  only:
+    - branches
+
+build-frontend:
+  <<: *build-image
+  stage: build
+  script:
+    - cd frontend
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA -f Dockerfile .
+    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+    - docker tag $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE/frontend:latest
+    - docker push $CI_REGISTRY_IMAGE/frontend:latest
+  only:
+    - branches
+
+# Deploy: SSH to remote host and run docker-compose pull && up
+deploy-to-server:
+  image: alpine:latest
+  stage: deploy
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)" || true
+    - ssh-add ~/.ssh/id_rsa || true
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts || true
+  script:
+    - ssh $DEPLOY_USER@$DEPLOY_HOST "cd $DEPLOY_PATH && docker-compose pull && docker-compose up -d --remove-orphans"
+  only:
+    - main
+  when: manual
+  environment:
+    name: production
+    url: https://$DOMAIN
+
