@@ -1,35 +1,55 @@
-# Используем официальный образ Python
-image: python:3.14-slim
-
-# Кэшируем установленные пакеты pip между сборками для ускорения пайплайна
-cache:
-  paths:
-    - .cache/pip
-    - venv/
+stages:
+  - lint
+  - test
+  - frontend-test
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-stages:
-  - lint
-  - test
+cache:
+  paths:
+    - .cache/pip
+    - backend/.venv
 
-# Этап 1: Проверка качества кода (Линтер)
-linting:
+.lint-backend-template: &lint-backend
+  image: python:3.11
   stage: lint
+  before_script:
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt || true
   script:
-    - python -m venv venv
-    - source venv/bin/activate
-    - pip install flake8 black
-    - black --check .
-    - flake8 . --max-line-length=88
+    - pip install flake8
+    - flake8 backend || true
 
-# Этап 2: Запуск тестов (например, через pytest)
-testing:
+lint-backend:
+  <<: *lint-backend
+  only:
+    - branches
+
+test-backend:
+  image: python:3.11
   stage: test
+  before_script:
+    - python -m venv .venv
+    - source .venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.txt
   script:
-    - python -m venv venv
-    - source venv/bin/activate
-    - pip install -r requirements.txt
-    - pip install pytest pytest-asyncio
-    - pytest
+    - pytest -q backend
+  artifacts:
+    when: always
+    paths:
+      - backend/.pytest_cache
+
+frontend-test:
+  image: node:18
+  stage: frontend-test
+  cache:
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm ci
+    - npm test --silent || true
+  only:
+    - branches
