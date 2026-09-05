@@ -4,7 +4,7 @@ from typing import List, Union
 class Settings(BaseSettings):
     app_name: str = "DolceVita Shop"
     debug: bool = True
-    database_url: str = "sqlite:///./shop.db"
+    database_url: str = "sqlite:////tmp/shop.db"
     cors_origins: Union[List[str], str] = [
         "http://localhost:5173",
         "http://localhost:3000",
