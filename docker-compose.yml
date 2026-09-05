@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   backend:
@@ -69,7 +68,7 @@ services:
       - dvshop_network
 
 networks:
-  fashop_network:
+  dvshop_network:
     driver: bridge
 
 volumes:
