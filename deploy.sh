@@ -505,7 +505,7 @@ update_backend_dockerfile() {
     print_step "Обновление backend Dockerfile"
 
     cat > backend/Dockerfile << EOF
-FROM python:3.11-slim
+FROM python:3.14-bookworm
 
 WORKDIR /app
 
@@ -544,7 +544,7 @@ ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=\${VITE_API_BASE_URL}
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 RUN npm run build
