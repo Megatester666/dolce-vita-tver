@@ -1,0 +1,35 @@
+# Используем официальный образ Python
+image: python:3.14-slim
+
+# Кэшируем установленные пакеты pip между сборками для ускорения пайплайна
+cache:
+  paths:
+    - .cache/pip
+    - venv/
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+stages:
+  - lint
+  - test
+
+# Этап 1: Проверка качества кода (Линтер)
+linting:
+  stage: lint
+  script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install flake8 black
+    - black --check .
+    - flake8 . --max-line-length=88
+
+# Этап 2: Запуск тестов (например, через pytest)
+testing:
+  stage: test
+  script:
+    - python -m venv venv
+    - source venv/bin/activate
+    - pip install -r requirements.txt
+    - pip install pytest pytest-asyncio
+    - pytest
